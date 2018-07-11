@@ -1,0 +1,42 @@
+local util = require 'xlua.util'
+function update(rt,st)
+  timer.update(rt,st)
+end
+
+--< Case 1 Begin>
+	timer.run(coroutine.create(function() 
+		timer:startDebug('Thread Frame')
+		while(true) do
+			--timer.waitSecond(1)
+			timer.waitFrame()
+		end
+	end))
+--< Case 1 End
+
+--< Case 2 Begin>
+	timer.run(function(pp)	
+		--timer:startDebug('Thread1')
+		timer.run(coroutine.create(function()			
+			--timer:startDebug('Thread2')
+			timer.waitSignal('c') --waiting for signal 'c'								
+			timer.waitSecond(10)														
+			print("wonderful!!!")														
+		end))
+		timer.waitSecond(3)
+		timer.waitSignal('b') 
+		timer.waitCoroutine(function(pp)
+			--timer:startDebug('Thread3')
+			timer.waitSecond(3)															
+			timer.signal('a') 
+		end,10)																			
+		print("it's very nice!")														
+	end,432)
+	timer.run(coroutine.create(function(pp)							
+		--timer:startDebug('Thread4')
+		timer.waitSecond(5)				
+		timer.signal('b')
+		timer.waitSignal('a') 	
+		timer.signal('c') 
+		print("Awesome!!!")																
+	end),123)
+--< Case 2 End
