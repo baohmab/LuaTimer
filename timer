@@ -1,0 +1,285 @@
+--[[
+	created by baohmab oyc.
+	7/11/2018
+--]]
+
+local timer = {
+	debugFlag = true,
+	time = {
+		scale = 0,
+		real = 0,
+	},
+	signals = {},
+	runningProcesses ={},
+	newProcesses ={},
+}
+timer.waitFrame ={
+	name = 'waitFrame',
+	timer = timer,
+	waitframe = function(self)
+		self.timer:debutPrint (timer.waitFrame)
+		coroutine.yield({})
+	end
+}
+setmetatable(timer.waitFrame,{__call=function(self)	self:waitframe() end})
+timer.wait = {
+	name = 'wait',
+	timer = timer,
+	isWait = function(self)
+		if self.condition==nil then return false end
+		return self:condition()
+	end,
+	new= function(self,title,pcondition)
+		if type(pcondition) ~= 'function' then return nil end
+		local newWait = setmetatable({name=title, ['condition'] = pcondition},{__index = self})
+		self.timer:debutPrint (timer.wait,newWait)
+		coroutine.yield(newWait)
+		--return newWait;
+	end,
+	getName= function(self)
+		return self.name
+	end
+}
+setmetatable(timer.wait,{__call=function(self,title,pcondition)
+	self:new(title,pcondition)
+end})
+
+timer.waitSecond = {
+	name = 'waitSecond',
+	timer = timer,
+	new = function(self,delayTime,isRealtime)
+		local newwait = {['delayTime'] =delayTime,['isRealtime']=isRealtime,
+		['condition'] = function(s) 
+			if s.isRealtime then do
+				return s.targetTime>s.timer.time.real
+			end else do 
+				return s.targetTime>s.timer.time.scale
+			end end --if
+		end}
+		if isRealtime then do
+			newwait.targetTime = self.timer.time.real+delayTime
+		end else do 
+			newwait.targetTime = self.timer.time.scale+delayTime
+		end end --if
+		self.timer:debutPrint (timer.waitSecond,newwait)
+		coroutine.yield(setmetatable(newwait,{__index = self}))
+		--return setmetatable(newwait,{__index = self})
+	end --function
+}
+setmetatable(timer.waitSecond,{__index=timer.wait,__call =function(t,time,isRealtime)
+		 return t:new(time,isRealtime)
+	end
+})
+
+timer.waitCoroutine = {
+	name = 'waitCoroutine',
+	timer = timer,
+	new = function(self,co,...)
+		co = self.timer.run(co,...).co
+		local newwait = {			
+			['condition'] = function(s) 
+				return s.timer.runningProcesses[co]~=nil or s.timer.newProcesses[co]~=nil
+			end
+		}
+		self.timer:debutPrint (timer.waitCoroutine,co)
+		coroutine.yield( setmetatable(newwait,{__index = self}))
+		--return setmetatable(newwait,{__index = self})
+	end,
+}
+setmetatable(timer.waitCoroutine,{
+	__index=timer.wait,
+	__call = function(t,co,...)
+		return t:new(co,...)
+	end,
+})
+
+timer.waitSignal={
+	name = 'waitSignal',
+	timer = timer,
+	new = function(self,sign)
+		local newwait = {
+			['condition'] = function(s) 
+				return s.signal
+			end,
+			signal = true
+		}
+		if self.timer.signals[sign] then
+			table.insert( self.timer.signals[sign], newwait )
+		else
+			self.timer.signals[sign] = { newwait }
+		end
+		self.timer:debutPrint (timer.waitSignal,sign)
+		coroutine.yield( setmetatable(newwait,{__index = self}))
+		--return setmetatable(newwait,{__index = self})
+	end
+}
+setmetatable(timer.waitSignal,{
+	__index=timer.wait,
+	__call = function(t,sign)
+		return t:new(sign)
+	end,
+})
+timer.signal = {
+	name = 'signal',
+	timer = timer,
+	sendSignal = function(self,sign)
+		for i, waitobj in ipairs( self.timer.signals[sign] ) do
+			if waitobj.signal ~=nil then waitobj.signal = false end
+		end
+		self.timer.signals[sign] = nil
+		self.timer:debutPrint (timer.signal,sign)
+	end,
+}
+setmetatable(timer.signal,{
+	__call = function(t,sign)
+		return t:sendSignal(sign)
+	end,
+})
+
+timer.run ={
+	name = 'coroutine',
+	timer = timer,
+	run = function(self,co,...)
+		if type(co)=='function' then 
+			setfenv( co,
+				setmetatable( {
+					wait = self.timer.wait,
+					waitSecond =self.timer.waitSecond ,
+					waitCoroutine =self.timer.waitCoroutine ,
+					waitSignal =self.timer.waitSignal ,
+					waitFrame =self.timer.waitFrame ,
+					signal =self.timer.signal ,
+					run =self.timer.run,
+				}, {
+					__index = getfenv( 0 ),
+				} )
+			 )
+			co = coroutine.create (co) 
+		end
+		if type(co)=='thread' then
+			if coroutine.status(co) ~= 'dead' then
+				self.timer.newProcesses[co] = {
+					['retv']={},
+					['param']=... or {},
+					['co'] = co,
+				}
+				setmetatable(self.timer.newProcesses[co] ,{__index = self.timer.run})
+				if (self.timer.debug==true) then 
+					self.timer.newProcesses[co]:debugPrint();
+				end
+				return self.timer.newProcesses[co]
+			end
+		end 
+		return nil
+	end
+}
+setmetatable(timer.run,{
+	__call = function(self,co,...)
+		return self:run(co,...)
+	end,
+})
+
+
+timer.update = {
+	name = 'update',
+	timer = timer,
+	update = function(self,rt,st)
+		self.timer.time.scale = st
+		self.timer.time.real = rt
+		self.timer.runningProcesses = {}
+		for co,data in pairs(self.timer.newProcesses) do
+			self.timer.runningProcesses[co] = data
+		end
+		self.timer.newProcesses = {}
+		for co,data in pairs(self.timer.runningProcesses) do
+			local iswait = false
+			if(type(data.retv.isWait)=='function') then
+				iswait = data.retv:isWait();
+			end
+			if iswait==false then 
+				self.timer.currentThread = co
+				local errorfree, value = coroutine.resume(co, data.param)
+				if errorfree==false then print ('~~~~~~~~~~~~~~~',value) end
+				data.retv = value
+				if coroutine.status(co) ~= 'dead' then
+					self.timer.newProcesses[co] = data
+				else
+					self.timer:debutPrint (timer.update,co)
+				end
+			else
+					self.timer.newProcesses[co] = data
+			end
+		end
+		--print(table.count(self.timer.newProcesses))
+	end
+}
+setmetatable(timer.update,{
+	__call = function(self,rt,st)
+		return self:update(rt,st)
+	end,
+})
+
+function timer.coData (self,co)
+	return self.newProcesses[co] or self.runningProcesses[co]
+end
+
+function timer.curCoData (self)
+	return self:coData(self.currentThread)
+end
+
+function timer.startDebug (self,debugName)
+	local curCo = self:curCoData()
+	if curCo then 
+		curCo.debugName=debugName 
+	else
+		return nil
+	end
+	if self.debugFlag then else return nil end
+	if curCo.debugName then else return nil end
+	print('Timer Log',table.count(self.runningProcesses),table.count(self.newProcesses),curCo.debugName,'Start Coroutine')
+end
+
+function timer.stopDebug (self)
+	local curcodata = self:curCoData()
+	if curcodata then curcodata.debugName=nil end
+end
+
+function timer.debutPrint (self,debugSource,data)
+	if self.debugFlag then else return nil end
+	local curCo = self:curCoData()
+	if curCo.debugName then else return end
+	if		debugSource==self.waitFrame 	then 	--self.timer:debutPrint (timer.waitFrame)
+		print('Timer Log',table.count(self.runningProcesses),table.count(self.newProcesses),curCo.debugName,'['..debugSource.name..']')
+	elseif	debugSource==self.wait			then --self.timer:debutPrint (timer.wait,newWait) {name=title, ['condition'] = pcondition},{__index = self}
+		print('Timer Log',table.count(self.runningProcesses),table.count(self.newProcesses),curCo.debugName,'['..debugSource.name..'] ('..data.title..')')
+	elseif	debugSource==self.waitSecond	then 	--self.timer:debutPrint (timer.waitSecond,newwait)  ['delayTime'] =delayTime,['isRealtime']
+		if data.isRealtime==nil then 
+			print('Timer Log',table.count(self.runningProcesses),table.count(self.newProcesses),curCo.debugName,'['..debugSource.name..'] ( delayTime='..data.delayTime..')')
+		else
+			print('Timer Log',table.count(self.runningProcesses),table.count(self.newProcesses),curCo.debugName,'['..debugSource.name..'] ( delayTime='..data.delayTime..',isRealtime='..data.isRealtime..')')
+		end
+	elseif	debugSource==self.waitCoroutine	then --self.timer:debutPrint (timer.waitCoroutine,co)
+		print('Timer Log',table.count(self.runningProcesses),table.count(self.newProcesses),curCo.debugName,'['..debugSource.name..']')
+	elseif	debugSource==self.waitSignal	then 	--self.timer:debutPrint (timer.waitSignal,sign)
+		print('Timer Log',table.count(self.runningProcesses),table.count(self.newProcesses),curCo.debugName,'['..debugSource.name..'] ( '..data..')')
+	elseif	debugSource==self.signal		then 	--self.timer:debutPrint (timer.signal,sign)
+		print('Timer Log',table.count(self.runningProcesses),table.count(self.newProcesses),curCo.debugName,'['..debugSource.name..'] ( '..data..')')
+	elseif	debugSource==self.update		then 	--self.timer:debutPrint (timer.update,co)
+		print('Timer Log',table.count(self.runningProcesses),table.count(self.newProcesses),curCo.debugName,'Stop Coroutine')
+	end
+end
+
+
+
+
+
+table.count= function(tbl) 
+  local count = 0
+    for foo, bar in pairs(tbl) do
+        count = count + 1
+    end
+    return count
+end
+
+
+return timer
