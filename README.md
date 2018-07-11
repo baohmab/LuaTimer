@@ -1,5 +1,5 @@
 # LuaTimer
-This lua script provide with yield second,yield coroutine,yield sign. I tested on xlua with unity3d
+This lua script provides some yields which frame,condition,second,coroutine,signal. I tested on unity3d with xlua
 
 	--This script is for coroutine with yield second,yield coroutine,yield sign.
 	--	first, define timer object
