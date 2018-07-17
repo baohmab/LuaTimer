@@ -13,6 +13,16 @@ This lua script provides some yields which frame,condition,second,coroutine,sign
 			end
 
 	--how to use:
+		timer.waitFrame()
+		timer.waitSecond(3)
+		timer:off().waitOR(timer.waitSecond(6),timer.waitSignal("test")):on();
+		timer:off().waitAND(timer.waitSecond(6),timer.waitSignal("test")):on();
+		timer.waitCoroutine(function(pp)   
+			timer:startDebug('Thread3')
+			timer.waitSecond(3)													
+			timer.signal('a')
+			signal 'a'	
+			end,10)																	
 
 	--< Case 1 Begin>
 	timer.run(coroutine.create(function() 
