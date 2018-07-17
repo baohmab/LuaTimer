@@ -9,9 +9,18 @@ local timer = {
 		scale = 0,
 		real = 0,
 	},
+	off = function(self)
+			self.enable = false
+			return self
+		end,
+	on = function(self)
+			self.enable = true
+			return self
+		end,
 	signals = {},
 	runningProcesses ={},
 	newProcesses ={},
+	enable = true,
 }
 timer.waitFrame ={
 	name = 'waitFrame',
@@ -29,11 +38,15 @@ timer.wait = {
 		if self.condition==nil then return false end
 		return self:condition()
 	end,
+	on = function(self) self.timer.enable=true; coroutine.yield(self) end,
 	new= function(self,title,pcondition)
 		if type(pcondition) ~= 'function' then return nil end
 		local newWait = setmetatable({name=title, ['condition'] = pcondition},{__index = self})
-		self.timer:debutPrint (timer.wait,newWait)
-		coroutine.yield(newWait)
+		if self.timer.enable then
+			self.timer:debutPrint (timer.wait,newWait)
+			coroutine.yield(newWait)
+		end
+		return newWait
 		--return newWait;
 	end,
 	getName= function(self)
@@ -41,7 +54,7 @@ timer.wait = {
 	end
 }
 setmetatable(timer.wait,{__call=function(self,title,pcondition)
-	self:new(title,pcondition)
+	return self:new(title,pcondition)
 end})
 
 timer.waitSecond = {
@@ -61,13 +74,61 @@ timer.waitSecond = {
 		end else do 
 			newwait.targetTime = self.timer.time.scale+delayTime
 		end end --if
-		self.timer:debutPrint (timer.waitSecond,newwait)
-		coroutine.yield(setmetatable(newwait,{__index = self}))
+		newwait = setmetatable(newwait,{__index = self})
+		if self.timer.enable then
+			self.timer:debutPrint (timer.waitSecond,newwait)
+			coroutine.yield(newwait)
+		end
+		return newwait
 		--return setmetatable(newwait,{__index = self})
 	end --function
 }
 setmetatable(timer.waitSecond,{__index=timer.wait,__call =function(t,time,isRealtime)
 		 return t:new(time,isRealtime)
+	end
+})
+timer.waitOR = {
+	name = 'waitOR',
+	timer = timer,
+	new = function(self,...)
+		local newwait = { targets = {...},
+		['condition'] = function(s) 
+			if s.targets ==nil or #s.targets==0 then return false end
+			for _, v in ipairs(s.targets) do
+				if v:isWait()==false then return false end
+			end
+			return true;
+		end}
+		newwait = setmetatable(newwait,{__index = self})
+		self.timer:debutPrint (timer.waitOR,newwait)
+		return newwait
+		--return setmetatable(newwait,{__index = self})
+	end --function
+}
+setmetatable(timer.waitOR,{__index=timer.wait,__call =function(t,...)
+		 return t:new(...)
+	end
+})
+timer.waitAND = {
+	name = 'waitAND',
+	timer = timer,
+	new = function(self,...)
+		local newwait = { targets ={ ...},
+		['condition'] = function(s) 
+			if s.targets ==nil or #s.targets==0 then return false end
+			for _, v in ipairs(s.targets) do
+				if v:isWait() then return true end
+			end
+			return false;
+		end}
+		newwait = setmetatable(newwait,{__index = self})
+		self.timer:debutPrint (timer.waitAND,newwait)
+		return newwait
+		--return setmetatable(newwait,{__index = self})
+	end --function
+}
+setmetatable(timer.waitAND,{__index=timer.wait,__call =function(t,...)
+		 return t:new(...)
 	end
 })
 
@@ -81,8 +142,12 @@ timer.waitCoroutine = {
 				return s.timer.runningProcesses[co]~=nil or s.timer.newProcesses[co]~=nil
 			end
 		}
-		self.timer:debutPrint (timer.waitCoroutine,co)
-		coroutine.yield( setmetatable(newwait,{__index = self}))
+		newwait = setmetatable(newwait,{__index = self})
+		if self.timer.enable then
+			self.timer:debutPrint (timer.waitCoroutine,co)
+			coroutine.yield(newwait)
+		end
+		return newwait
 		--return setmetatable(newwait,{__index = self})
 	end,
 }
@@ -108,8 +173,12 @@ timer.waitSignal={
 		else
 			self.timer.signals[sign] = { newwait }
 		end
-		self.timer:debutPrint (timer.waitSignal,sign)
-		coroutine.yield( setmetatable(newwait,{__index = self}))
+		newwait = setmetatable(newwait,{__index = self})
+		if self.timer.enable then
+			self.timer:debutPrint (timer.waitSignal,sign)
+			coroutine.yield( newwait)
+		end
+		return newwait
 		--return setmetatable(newwait,{__index = self})
 	end
 }
@@ -199,12 +268,12 @@ timer.update = {
 			if iswait==false then 
 				self.timer.currentThread = co
 				local errorfree, value = coroutine.resume(co, data.param)
-				if errorfree==false then print ('~~~~~~~~~~~~~~~',value) end
+				if errorfree==false then print('[Error] '..tostring(value)) end
 				data.retv = value
 				if coroutine.status(co) ~= 'dead' then
 					self.timer.newProcesses[co] = data
 				else
-					self.timer:debutPrint (timer.update,co)
+					self.timer:debutPrint (timer.update,'Stop Coroutine')
 				end
 			else
 					self.timer.newProcesses[co] = data
@@ -265,13 +334,9 @@ function timer.debutPrint (self,debugSource,data)
 	elseif	debugSource==self.signal		then 	--self.timer:debutPrint (timer.signal,sign)
 		print('Timer Log',table.count(self.runningProcesses),table.count(self.newProcesses),curCo.debugName,'['..debugSource.name..'] ( '..data..')')
 	elseif	debugSource==self.update		then 	--self.timer:debutPrint (timer.update,co)
-		print('Timer Log',table.count(self.runningProcesses),table.count(self.newProcesses),curCo.debugName,'Stop Coroutine')
+		print('Timer Log',table.count(self.runningProcesses),table.count(self.newProcesses),curCo.debugName,data)
 	end
 end
-
-
-
-
 
 table.count= function(tbl) 
   local count = 0
@@ -280,6 +345,19 @@ table.count= function(tbl)
     end
     return count
 end
+
+table.toString= function(tbl) 
+	if(tbl==nil) then return '' end
+	local str = 'type=>'..type(tbl)..'\n'
+	if type(tbl)~='table' then return str..tostring(tbl) end
+    for foo, bar in pairs(tbl) do
+		str = str..'['..foo..']='..tostring(bar)..'\n'
+    end
+    return str
+end
+
+
+
 
 
 return timer
