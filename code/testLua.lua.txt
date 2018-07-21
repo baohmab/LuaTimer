@@ -40,3 +40,17 @@ end
 		print("Awesome!!!")																
 	end),123)
 --< Case 2 End
+
+	timer.run(function()
+		--timer:startDebug('connectSuccess')
+		timer:off().waitOR(
+			timer.waitSignal("connectSuccess"),
+			timer.waitSecond(5):setid('cantConnect')
+		):on();
+		if timer:checkid('cantConnect') then 
+			print('time out 5 second')
+		else
+			print('recieve signal connectSuccess')
+		end
+	end)
+
