@@ -187,6 +187,7 @@ timer.waitSignal={
 	timer = timer,
 	new = function(self,sign)
 		local newwait = {
+			id=sign,
 			['condition'] = function(s) 
 				return s.signal
 			end,
@@ -217,12 +218,19 @@ timer.signal = {
 	name = 'signal',
 	timer = timer,
 	sendSignal = function(self,sign)
-		if self.timer.signals[sign] == nil then return nil end
-		for i, waitobj in ipairs( self.timer.signals[sign] ) do
-			if waitobj.signal ~=nil then waitobj.signal = false end
+		if self.timer.signals[sign] == nil then 
+			self.timer:debutPrint (timer.signal,sign..'(empty?)')
+			return nil 
 		end
-		self.timer.signals[sign] = nil
-		self.timer:debutPrint (timer.signal,sign)
+		local count = 0
+		for i, waitobj in ipairs( self.timer.signals[sign] ) do
+			if waitobj.signal ~=nil then 
+				count=count+1;
+				waitobj.signal = false 
+			end
+		end
+		self.timer.signals[sign] = nil		
+		self.timer:debutPrint (timer.signal,sign..'('..count..')')
 	end,
 }
 setmetatable(timer.signal,{
@@ -289,7 +297,7 @@ timer.update = {
 		self.timer:resetcheck();
 		for co,data in pairs(self.timer.runningProcesses) do
 			local iswait = false
-			if(type(data.retv.isWait)=='function') then
+			if(data.retv~=nil and type(data.retv.isWait)=='function') then
 				iswait = data.retv:isWait();
 				self.timer:addcheck(data.retv)
 			end
@@ -348,7 +356,7 @@ function timer.stopDebug (self)
 end
 
 function timer.debutPrint (self,debugSource,data)
-	if self.debugFlag then else return nil end
+	if self.debugFlag==nil or self.debugFlag==false then return nil end
 	local curCo = self:curCoData()
 	if(curCo==nil) then
 		if	debugSource.name=='signal'	then
