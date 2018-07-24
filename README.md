@@ -12,7 +12,7 @@ This lua script provides some yields which frame,condition,second,coroutine,sign
 				timer.update(rt,st) --realTime, scaleTime
 			end
 
-# how to use:
+# How to use:
 		timer.waitFrame()
 		timer.waitSecond(3)
 		timer:off().waitOR(timer.waitSecond(6),timer.waitSignal("test")):on();
