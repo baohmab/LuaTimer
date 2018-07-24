@@ -6,13 +6,13 @@ This lua script provides some yields which frame,condition,second,coroutine,sign
 		local timer = require 'xlua.Timer-master.timer'
 	--and you should call a function 'timer.update' every time on all frame with given two parameters: realTime,scaleTime
 
-	--	for instance 
+	## need calling everyframe
 
 			function update(rt,st)
-				timer.update(rt,st)
+				timer.update(rt,st) --realTime, scaleTime
 			end
 
-	--how to use:
+	## how to use:
 		timer.waitFrame()
 		timer.waitSecond(3)
 		timer:off().waitOR(timer.waitSecond(6),timer.waitSignal("test")):on();
@@ -24,7 +24,7 @@ This lua script provides some yields which frame,condition,second,coroutine,sign
 			signal 'a'	
 			end,10)																	
 
-	--< Case 1 Begin>
+	## Case 1
 	timer.run(coroutine.create(function() 
 		timer:startDebug('Thread Frame')
 		while(true) do
@@ -32,9 +32,9 @@ This lua script provides some yields which frame,condition,second,coroutine,sign
 			timer.waitFrame()
 		end
 	end))
-	--< Case 1 End
+	
 
-	--< Case 2 Begin>
+	## Case 2
 	timer.run(function(pp)		      --unblocking		you can use parameter of function 'timer.run' with two type: function, thread
 		timer:startDebug('Thread1')
 		timer.run(coroutine.create(function()  --unblocking								
@@ -60,4 +60,18 @@ This lua script provides some yields which frame,condition,second,coroutine,sign
 		timer.signal('c')             --send signal 'c' and wake up things waiting signal 'c'		
 		print("Awesome!!!")																
 	end),123)
-	--< Case 2 End
+	
+	
+	## Case 3
+	timer.run(function()
+		timer:off().waitOR(
+			timer.waitSignal("CreatedRoomSuccess"),
+			timer.waitSecond(2)
+		):on();						
+		if timer:checkid('CreatedRoomSuccess')==false then 
+		--timer.waitSecond(2)
+		else
+		--timer.waitSignal("CreatedRoomSuccess"),
+		end
+	end)
+	
