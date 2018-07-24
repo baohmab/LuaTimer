@@ -6,7 +6,7 @@ This lua script provides some yields which frame,condition,second,coroutine,sign
 		local timer = require 'xlua.Timer-master.timer'
 	--and you should call a function 'timer.update' every time on all frame with given two parameters: realTime,scaleTime
 
-	# Need calling everyframe
+## Need calling everyframe
 
 			function update(rt,st)
 				timer.update(rt,st) --realTime, scaleTime
@@ -24,7 +24,7 @@ This lua script provides some yields which frame,condition,second,coroutine,sign
 			signal 'a'	
 			end,10)																	
 
-	# Case 1
+# Case 1
 	timer.run(coroutine.create(function() 
 		timer:startDebug('Thread Frame')
 		while(true) do
@@ -34,7 +34,7 @@ This lua script provides some yields which frame,condition,second,coroutine,sign
 	end))
 	
 
-	# Case 2
+# Case 2
 	timer.run(function(pp)		      --unblocking		you can use parameter of function 'timer.run' with two type: function, thread
 		timer:startDebug('Thread1')
 		timer.run(coroutine.create(function()  --unblocking								
@@ -62,7 +62,7 @@ This lua script provides some yields which frame,condition,second,coroutine,sign
 	end),123)
 	
 	
-	# Case 3
+# Case 3
 	timer.run(function()
 		timer:off().waitOR(
 			timer.waitSignal("CreatedRoomSuccess"),
