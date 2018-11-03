@@ -1,31 +1,31 @@
 # xLuaTimer
-timer = require("timer")
-  local co1 = timer:start(
-    this:downloadImag() --CS function
-  );
-  local iswait = true;
-  local co2 = timer:start(
-    function(param)
-      timer:start(
-        function()
-          timer:yield(3);
-          iswait=false;
-        end
-      );
-      print(param.testparam);
-      timer:yield(); --wait for a frame
-      timer:yield(1); --wait for a second
-      timer:yield(timer:start(
-        function()
-          timer:yield(function() return iswait==false; end) --wait until
-          print("wait XXX");
-        end
-      ));
-    end,
-    {testparam="OKOK"}
-  );
-  --timer:stop(co1);
-  --timer:stop(co2);
+	timer = require("timer")
+	  local co1 = timer:start(
+	    this:downloadImag() --CS function
+	  );
+	  local iswait = true;
+	  local co2 = timer:start(
+	    function(param)
+	      timer:start(
+		function()
+		  timer:yield(3);
+		  iswait=false;
+		end
+	      );
+	      print(param.testparam);
+	      timer:yield(); --wait for a frame
+	      timer:yield(1); --wait for a second
+	      timer:yield(timer:start(
+		function()
+		  timer:yield(function() return iswait==false; end) --wait until
+		  print("wait XXX");
+		end
+	      ));
+	    end,
+	    {testparam="OKOK"}
+	  );
+	  --timer:stop(co1);
+	  --timer:stop(co2);
 
 
 # LuaTimer
